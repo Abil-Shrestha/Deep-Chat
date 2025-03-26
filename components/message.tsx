@@ -1,6 +1,6 @@
 'use client';
 
-import type { UIMessage } from 'ai';
+import type { UIMessage, UIMessagePart } from 'ai';
 import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
@@ -18,7 +18,20 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
 import { MessageReasoning } from './message-reasoning';
-import { UseChatHelpers } from '@ai-sdk/react';
+import type { UseChatHelpers } from '@ai-sdk/react';
+import { ResearchPreview } from './research-preview';
+import { ResearchToolResult } from './research-tool-result';
+
+type ToolCallPart = UIMessagePart & {
+  type: 'tool-invocation';
+  toolInvocation: {
+    toolName: string;
+    toolCallId: string;
+    args: any;
+    state: 'call' | 'result';
+    result?: any;
+  };
+};
 
 const PurePreviewMessage = ({
   chatId,
@@ -38,6 +51,10 @@ const PurePreviewMessage = ({
   isReadonly: boolean;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
+
+  const toolCalls = message.parts.filter(
+    (part): part is ToolCallPart => part.type === 'tool-invocation',
+  );
 
   return (
     <AnimatePresence>
@@ -176,6 +193,8 @@ const PurePreviewMessage = ({
                           args={args}
                           isReadonly={isReadonly}
                         />
+                      ) : toolName === 'createResearch' ? (
+                        <ResearchPreview args={args} isReadonly={isReadonly} />
                       ) : null}
                     </div>
                   );
@@ -202,6 +221,11 @@ const PurePreviewMessage = ({
                       ) : toolName === 'requestSuggestions' ? (
                         <DocumentToolResult
                           type="request-suggestions"
+                          result={result}
+                          isReadonly={isReadonly}
+                        />
+                      ) : toolName === 'createResearch' ? (
+                        <ResearchToolResult
                           result={result}
                           isReadonly={isReadonly}
                         />

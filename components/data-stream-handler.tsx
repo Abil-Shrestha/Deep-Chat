@@ -2,8 +2,8 @@
 
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef } from 'react';
-import { artifactDefinitions, ArtifactKind } from './artifact';
-import { Suggestion } from '@/lib/db/schema';
+import { getArtifactDefinitions, type ArtifactKind } from './artifact';
+import type { Suggestion } from '@/lib/db/schema';
 import { initialArtifactData, useArtifact } from '@/hooks/use-artifact';
 
 export type DataStreamDelta = {
@@ -17,7 +17,11 @@ export type DataStreamDelta = {
     | 'suggestion'
     | 'clear'
     | 'finish'
-    | 'kind';
+    | 'kind'
+    | 'research-status'
+    | 'research-progress'
+    | 'research-section'
+    | 'research-source';
   content: string | Suggestion;
 };
 
@@ -29,10 +33,19 @@ export function DataStreamHandler({ id }: { id: string }) {
   useEffect(() => {
     if (!dataStream?.length) return;
 
+    console.log(
+      'New data stream:',
+      dataStream.slice(lastProcessedIndex.current + 1),
+    );
+
     const newDeltas = dataStream.slice(lastProcessedIndex.current + 1);
     lastProcessedIndex.current = dataStream.length - 1;
 
     (newDeltas as DataStreamDelta[]).forEach((delta: DataStreamDelta) => {
+      console.log('Processing delta:', delta);
+
+      // Get latest artifact definitions
+      const artifactDefinitions = getArtifactDefinitions();
       const artifactDefinition = artifactDefinitions.find(
         (artifactDefinition) => artifactDefinition.kind === artifact.kind,
       );
@@ -63,6 +76,7 @@ export function DataStreamHandler({ id }: { id: string }) {
               ...draftArtifact,
               title: delta.content as string,
               status: 'streaming',
+              isVisible: true,
             };
 
           case 'kind':
@@ -70,6 +84,7 @@ export function DataStreamHandler({ id }: { id: string }) {
               ...draftArtifact,
               kind: delta.content as ArtifactKind,
               status: 'streaming',
+              isVisible: true,
             };
 
           case 'clear':

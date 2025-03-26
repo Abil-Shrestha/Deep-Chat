@@ -1,5 +1,5 @@
 import {
-  UIMessage,
+  type UIMessage,
   appendResponseMessages,
   createDataStreamResponse,
   smoothStream,
@@ -20,6 +20,8 @@ import {
 } from '@/lib/utils';
 import { generateTitleFromUserMessage } from '../../actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
+import { createResearch } from '@/lib/ai/tools/create-research';
+
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
@@ -94,6 +96,7 @@ export async function POST(request: Request) {
                   'createDocument',
                   'updateDocument',
                   'requestSuggestions',
+                  'createResearch',
                 ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
@@ -105,6 +108,7 @@ export async function POST(request: Request) {
               session,
               dataStream,
             }),
+            createResearch: createResearch({ session, dataStream, chatId: id }),
           },
           onFinish: async ({ response }) => {
             if (session.user?.id) {

@@ -26,14 +26,69 @@ import { codeArtifact } from '@/artifacts/code/client';
 import { sheetArtifact } from '@/artifacts/sheet/client';
 import { textArtifact } from '@/artifacts/text/client';
 import equal from 'fast-deep-equal';
-import { UseChatHelpers } from '@ai-sdk/react';
+import type { UseChatHelpers } from '@ai-sdk/react';
+import type { ReactNode } from 'react';
+import type { DataStreamDelta } from './data-stream-handler';
 
-export const artifactDefinitions = [
+export type Artifact<K extends string, M = any> = {
+  kind: K;
+  description: string;
+  initialize: (params: {
+    documentId: string;
+    setMetadata: (metadata: M) => void;
+  }) => Promise<void>;
+  onStreamPart: (params: {
+    streamPart: DataStreamDelta;
+    setMetadata: (metadata: M) => void;
+    setArtifact: (artifact: any) => void;
+  }) => void;
+  toolbar: Array<any>;
+  view: {
+    edit: (params: {
+      content: string;
+      metadata: M;
+      setMetadata: (metadata: M) => void;
+    }) => ReactNode;
+  };
+};
+
+export function createArtifact<K extends string, M = any>(
+  config: Artifact<K, M>,
+): Artifact<K, M> {
+  return config;
+}
+
+// Initialize with known artifacts
+const initialArtifactDefinitions = [
   textArtifact,
   codeArtifact,
   imageArtifact,
   sheetArtifact,
 ];
+
+// Export the artifactDefinitions as a function to ensure it's always up to date
+export const getArtifactDefinitions = () => {
+  try {
+    // Dynamically try to import researchArtifact
+    const researchArtifactModule = require('@/artifacts/research/client');
+    const researchArtifact = researchArtifactModule.researchArtifact;
+
+    // Check if researchArtifact is already in the definitions
+    if (
+      !initialArtifactDefinitions.some(
+        (def) => def.kind === researchArtifact.kind,
+      )
+    ) {
+      initialArtifactDefinitions.push(researchArtifact);
+    }
+  } catch (error) {
+    console.warn('Could not load researchArtifact:', error);
+  }
+
+  return initialArtifactDefinitions;
+};
+
+export const artifactDefinitions = getArtifactDefinitions();
 export type ArtifactKind = (typeof artifactDefinitions)[number]['kind'];
 
 export interface UIArtifact {
@@ -48,6 +103,19 @@ export interface UIArtifact {
     left: number;
     width: number;
     height: number;
+  };
+  metadata?: {
+    status: 'pending' | 'in-progress' | 'complete';
+    progress: number;
+    sections: Array<{
+      title: string;
+      content: string;
+      complete: boolean;
+    }>;
+    sources: Array<{
+      title: string;
+      url: string;
+    }>;
   };
 }
 
@@ -232,7 +300,7 @@ function PureArtifact({
   const { width: windowWidth, height: windowHeight } = useWindowSize();
   const isMobile = windowWidth ? windowWidth < 768 : false;
 
-  const artifactDefinition = artifactDefinitions.find(
+  const artifactDefinition = getArtifactDefinitions().find(
     (definition) => definition.kind === artifact.kind,
   );
 

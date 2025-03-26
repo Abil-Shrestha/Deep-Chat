@@ -9,6 +9,8 @@ import {
   primaryKey,
   foreignKey,
   boolean,
+  integer,
+  index,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('User', {
@@ -150,3 +152,78 @@ export const suggestion = pgTable(
 );
 
 export type Suggestion = InferSelectModel<typeof suggestion>;
+
+export const deepResearch = pgTable(
+  'DeepResearch',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    chatId: uuid('chatId')
+      .notNull()
+      .references(() => chat.id, { onDelete: 'cascade' }),
+    userId: uuid('userId')
+      .notNull()
+      .references(() => user.id),
+    query: text('query').notNull(),
+    status: varchar('status', {
+      enum: ['pending', 'in_progress', 'completed', 'failed'],
+    })
+      .notNull()
+      .default('pending'),
+    results: json('results').notNull().default('{}'),
+    metadata: json('metadata').notNull().default('{}'),
+    error: text('error'),
+    startedAt: timestamp('startedAt', { withTimezone: true }),
+    completedAt: timestamp('completedAt', { withTimezone: true }),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull(),
+  },
+  (table) => {
+    return {
+      chatIdIdx: index('deepResearch_chatId_idx').on(table.chatId),
+      userIdIdx: index('deepResearch_userId_idx').on(table.userId),
+      statusIdx: index('deepResearch_status_idx').on(table.status),
+    };
+  },
+);
+
+export type DeepResearch = InferSelectModel<typeof deepResearch>;
+
+export const deepResearchStep = pgTable(
+  'DeepResearchStep',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    researchId: uuid('researchId')
+      .notNull()
+      .references(() => deepResearch.id, { onDelete: 'cascade' }),
+    stepOrder: integer('stepOrder').notNull(),
+    stepType: varchar('stepType', {
+      enum: [
+        'web_search',
+        'website_visit',
+        'content_analysis',
+        'summary_generation',
+      ],
+    }).notNull(),
+    status: varchar('status', {
+      enum: ['pending', 'in_progress', 'completed', 'failed'],
+    })
+      .notNull()
+      .default('pending'),
+    data: json('data').notNull().default('{}'),
+    error: text('error'),
+    startedAt: timestamp('startedAt', { withTimezone: true }),
+    completedAt: timestamp('completedAt', { withTimezone: true }),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull(),
+  },
+  (table) => {
+    return {
+      researchIdIdx: index('deepResearchStep_researchId_idx').on(
+        table.researchId,
+      ),
+      statusIdx: index('deepResearchStep_status_idx').on(table.status),
+    };
+  },
+);
+
+export type DeepResearchStep = InferSelectModel<typeof deepResearchStep>;
